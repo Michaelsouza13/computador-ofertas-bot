@@ -58,7 +58,7 @@ class KabumScraper(BaseScraper):
             offers.append(Offer(
                 title=title[:150], product_id=pid,
                 current_price=float(price), product_url=url,
-                platform="kabum",
+                image_url=prod.get("image", ""), platform="kabum",
             ))
         return offers
 

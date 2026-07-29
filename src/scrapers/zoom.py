@@ -52,8 +52,11 @@ class ZoomScraper(BaseScraper):
             if not title or current <= 0:
                 continue
             full_url = href if href.startswith("http") else f"https://www.zoom.com.br{href}"
+            img_el = card.select_one('[data-testid="product-card::image"] img')
+            img_url = img_el.get("src", "") if img_el else ""
             offers.append(Offer(
                 title=title[:150], product_id=pid,
-                current_price=current, product_url=full_url, platform="zoom",
+                current_price=current, product_url=full_url,
+                image_url=img_url, platform="zoom",
             ))
         return offers

@@ -53,9 +53,11 @@ class AmazonBRScraper(BaseScraper):
                     pass
             if not title or current <= 0:
                 continue
+            img_el = item.find("img", class_="s-image")
+            img_url = img_el.get("src", "") if img_el else ""
             offers.append(Offer(
                 title=title, product_id=pid, current_price=current,
-                platform="amazon_br",
+                image_url=img_url, platform="amazon_br",
                 product_url=f"https://www.amazon.com.br/dp/{asin}",
             ))
         return offers

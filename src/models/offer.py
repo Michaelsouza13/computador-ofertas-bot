@@ -109,6 +109,7 @@ class Offer:
             "ZM": "Zoom",
             "BC": "Buscapé",
             "NW": "Newegg",
+            "PB": "Promobit",
         }
         prefix = self.product_id[:2].upper() if len(self.product_id) >= 2 else ""
         return labels.get(prefix, self.platform or "Oferta")

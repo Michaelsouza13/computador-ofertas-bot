@@ -13,6 +13,7 @@ magalu = false
 # Comparadores de preço
 zoom = true
 buscape = true
+promobit = true
 
 # Internacionais (desligados por padrão - requerem mais cuidado com anti-bot)
 amazon_us = false

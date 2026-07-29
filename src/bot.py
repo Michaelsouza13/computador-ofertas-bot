@@ -21,6 +21,7 @@ from src.scrapers.buscape import BuscapeScraper
 from src.scrapers.amazon_us import AmazonUSScraper
 from src.scrapers.aliexpress import AliExpressScraper
 from src.scrapers.newegg import NeweggScraper
+from src.scrapers.promobit import PromobitScraper
 from src.score.engine import ScoreEngine
 from src.senders.telegram import TelegramSender
 from src.senders.whatsapp import WhatsAppSender
@@ -75,6 +76,8 @@ def _get_platforms(config: dict):
         scrapers.append(AliExpressScraper())
     if enabled.get("newegg", False):
         scrapers.append(NeweggScraper())
+    if enabled.get("promobit", True):
+        scrapers.append(PromobitScraper())
     return scrapers
 
 
