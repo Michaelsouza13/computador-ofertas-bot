@@ -224,9 +224,6 @@ def main():
 
     offers = _balance_offers(all_offers, max_offers)
 
-    for o in offers:
-        price_history.record_offer(o)
-
     scored_offers = []
     for o in offers:
         o.score = score_engine.evaluate(o)
@@ -234,6 +231,9 @@ def main():
             scored_offers.append(o)
 
     scored_offers.sort(key=lambda o: o.score.final, reverse=True)
+
+    for o in offers:
+        price_history.record_offer(o)
 
     logger.info("offers_to_send", extra={"count": len(scored_offers)})
 
