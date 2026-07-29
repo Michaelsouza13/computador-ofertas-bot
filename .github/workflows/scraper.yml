@@ -41,7 +41,7 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           MAX_OFFERS_PER_RUN: 15
           SEND_DELAY_SECONDS: 30
-        run: python -m src.bot
+        run: python -m src.main
 
       - name: Upload logs como artifact
         if: always()
