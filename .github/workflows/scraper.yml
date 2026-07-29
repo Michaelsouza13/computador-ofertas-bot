@@ -1,0 +1,59 @@
+name: Scraper de Ofertas
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Restaurar cache de ofertas enviadas
+        uses: actions/cache@v4
+        with:
+          path: cache/
+          key: sent-cache-${{ github.run_id }}
+          restore-keys: sent-cache-
+
+      - name: Rodar bot
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          ZAP_API_URL: ${{ secrets.ZAP_API_URL }}
+          ZAP_API_KEY: ${{ secrets.ZAP_API_KEY }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          SHOPEE_APP_ID: ${{ secrets.SHOPEE_APP_ID }}
+          SHOPEE_APP_SECRET: ${{ secrets.SHOPEE_APP_SECRET }}
+          AFFILIATE_TAG_ML: ${{ secrets.AFFILIATE_TAG_ML }}
+          AFFILIATE_TAG_AMAZON: ${{ secrets.AFFILIATE_TAG_AMAZON }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          MAX_OFFERS_PER_RUN: 15
+          SEND_DELAY_SECONDS: 30
+        run: python src/main.py
+
+      - name: Upload logs como artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 7
+
+      - name: Salvar cache de ofertas enviadas
+        if: always()
+        uses: actions/cache@v4
+        with:
+          path: cache/
+          key: sent-cache-${{ github.run_id }}
