@@ -24,6 +24,10 @@ class BaseScraper(ABC):
     def search(self, term: str, max_offers: int = 5) -> list[Offer]:
         ...
 
+    def _is_http_blocked(self) -> bool:
+        http = getattr(self, "http", None)
+        return http is not None and http.is_blocked()
+
     def scrape_targets(self, max_offers: int = 15) -> list[Offer]:
         import time
         self.errors_this_run = 0
@@ -31,7 +35,14 @@ class BaseScraper(ABC):
         all_offers = []
         seen = set()
 
+        if self._is_http_blocked():
+            self.logger.warning("platform_blocked_skip_all")
+            return all_offers
+
         for target in TARGETS:
+            if self._is_http_blocked():
+                self.logger.warning("platform_blocked_mid_run")
+                break
             terms = target.get("search_terms", [])
             max_price = target.get("max_price", 0)
             name = target.get("name", "")
@@ -41,6 +52,8 @@ class BaseScraper(ABC):
 
             for term in terms:
                 if len(all_offers) >= max_offers:
+                    break
+                if self._is_http_blocked():
                     break
                 try:
                     results = self.search(term, max_offers=5)

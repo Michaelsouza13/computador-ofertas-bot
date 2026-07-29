@@ -3,9 +3,16 @@ import random
 import time
 from typing import Optional
 
-import requests
-
 logger = logging.getLogger("scrapers.http_client")
+
+try:
+    import curl_cffi.requests as _requests
+    import curl_cffi.requests.exceptions as _requests_exc
+    CURL_CFFI_AVAILABLE = True
+except ImportError:
+    import requests as _requests
+    import requests.exceptions as _requests_exc
+    CURL_CFFI_AVAILABLE = False
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -22,6 +29,8 @@ BASE_HEADERS = {
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
 }
+
+BLOCK_THRESHOLD = 2
 
 
 class AdaptiveRateLimiter:
@@ -46,17 +55,36 @@ class AdaptiveRateLimiter:
 
 
 class HttpClient:
-    def __init__(self, platform: str = ""):
+    def __init__(self, platform: str = "", use_curl_cffi: bool = False):
         self.platform = platform
-        self.session = requests.Session()
+        self.use_curl_cffi = use_curl_cffi and CURL_CFFI_AVAILABLE
+        if self.use_curl_cffi:
+            logger.info("using_curl_cffi", extra={"platform": platform})
+        self.session = _requests.Session()
         self.limiter = AdaptiveRateLimiter(min_delay=2.0, max_delay=30.0)
+        self.consecutive_blocks = 0
+        self._blocked = False
         self._rotate_ua()
 
     def _rotate_ua(self):
         self.session.headers.update(BASE_HEADERS)
         self.session.headers["User-Agent"] = random.choice(USER_AGENTS)
 
+    def is_blocked(self) -> bool:
+        return self._blocked
+
+    def reset(self):
+        self.consecutive_blocks = 0
+        self._blocked = False
+        self.limiter.current_delay = self.limiter.min_delay
+
     def get(self, url: str, timeout: int = 15, **kwargs) -> Optional[str]:
+        if self._blocked:
+            logger.debug("platform_blocked_skip", extra={
+                "platform": self.platform, "url": url[:80],
+            })
+            return None
+
         self.limiter.wait()
         self._rotate_ua()
         logger.debug("http_get", extra={
@@ -64,15 +92,25 @@ class HttpClient:
             "delay": round(self.limiter.current_delay, 1),
         })
         try:
-            resp = self.session.get(url, timeout=(timeout, timeout), **kwargs)
+            resp = self.session.get(url, timeout=timeout, **kwargs)
             if resp.status_code in (429, 403):
+                self.consecutive_blocks += 1
                 self.limiter.on_block()
-                logger.warning("http_blocked", extra={
-                    "url": url[:80], "status": resp.status_code,
-                    "platform": self.platform,
-                    "new_delay": round(self.limiter.current_delay, 1),
-                })
+                if self.consecutive_blocks >= BLOCK_THRESHOLD:
+                    self._blocked = True
+                    logger.warning("platform_permanently_blocked", extra={
+                        "platform": self.platform,
+                        "status": resp.status_code,
+                        "consecutive_blocks": self.consecutive_blocks,
+                    })
+                else:
+                    logger.warning("http_blocked", extra={
+                        "url": url[:80], "status": resp.status_code,
+                        "platform": self.platform,
+                        "new_delay": round(self.limiter.current_delay, 1),
+                    })
                 return None
+            self.consecutive_blocks = 0
             resp.raise_for_status()
             resp.encoding = "utf-8"
             self.limiter.on_success()
@@ -81,12 +119,12 @@ class HttpClient:
                 "size_kb": round(len(resp.text) / 1024, 1),
             })
             return resp.text
-        except requests.Timeout:
+        except _requests_exc.Timeout:
             logger.error("http_timeout", extra={
                 "url": url[:80], "platform": self.platform,
             })
             return None
-        except requests.RequestException as e:
+        except _requests_exc.RequestException as e:
             logger.error("http_error", extra={
                 "url": url[:80], "error": str(e), "platform": self.platform,
             })

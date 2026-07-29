@@ -14,7 +14,7 @@ SEARCH_URL = "https://www.magazineluiza.com.br/busca/{termo}/?from=submit"
 class MagaluScraper(BaseScraper):
     def __init__(self):
         super().__init__()
-        self.http = HttpClient(platform="magalu")
+        self.http = HttpClient(platform="magalu", use_curl_cffi=True)
 
     @property
     def platform_name(self) -> str:

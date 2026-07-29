@@ -14,7 +14,7 @@ SEARCH_URL = "https://www.pichau.com.br/search?q={termo}"
 class PichauScraper(BaseScraper):
     def __init__(self):
         super().__init__()
-        self.http = HttpClient(platform="pichau")
+        self.http = HttpClient(platform="pichau", use_curl_cffi=True)
 
     @property
     def platform_name(self) -> str:
