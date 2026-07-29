@@ -1,14 +1,14 @@
 [platforms]
 # Core - sempre ativos
-mercadolivre = true
+mercadolivre = false
 kabum = true
-pichau = true
+pichau = false
 terabyte = true
 
 # Marketplaces brasileiros
-shopee = true
+shopee = false
 amazon_br = true
-magalu = true
+magalu = false
 
 # Comparadores de preço
 zoom = true

@@ -1,5 +1,4 @@
 import logging
-import re
 from urllib.parse import quote
 
 from src.models.offer import Offer
@@ -31,18 +30,19 @@ class BuscapeScraper(BaseScraper):
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(html, "html.parser")
         offers = []
-        cards = soup.find_all("div", class_=re.compile(r"card|product|item"))
+        cards = soup.select('article[data-testid="product-card"]')
         for card in cards:
             if len(offers) >= max_offers:
                 break
-            link = card.find("a", href=True)
-            if not link:
+            link_el = card.select_one('a[data-testid="product-card::card"]')
+            if not link_el:
                 continue
-            href = link.get("href", "")
+            href = link_el.get("href", "")
             pid_base = str(hash(href))[:10]
             pid = f"BC{pid_base}"
-            title = link.get("title", "") or link.get_text(strip=True)
-            price_el = card.find(["span", "div", "p"], class_=re.compile(r"price|value|Primary"))
+            title_el = card.select_one('h2[data-testid="product-card::name"]')
+            title = title_el.get_text(strip=True) if title_el else ""
+            price_el = card.select_one('[data-testid="product-card::price"] strong')
             current = 0.0
             if price_el:
                 try:

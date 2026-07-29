@@ -1,5 +1,4 @@
 import logging
-import re
 from urllib.parse import quote
 
 from src.models.offer import Offer
@@ -14,7 +13,7 @@ SEARCH_URL = "https://www.terabyteshop.com.br/busca?str={termo}"
 class TerabyteScraper(BaseScraper):
     def __init__(self):
         super().__init__()
-        self.http = HttpClient(platform="terabyte")
+        self.http = HttpClient(platform="terabyte", use_curl_cffi=True, impersonate="chrome120")
 
     @property
     def platform_name(self) -> str:
@@ -31,30 +30,31 @@ class TerabyteScraper(BaseScraper):
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(html, "html.parser")
         offers = []
-        seen = set()
-        products = soup.find_all("div", class_=re.compile(r"produto|item|card"))
-        for prod in products:
+        cards = soup.select("div.product-item")
+        for card in cards:
             if len(offers) >= max_offers:
                 break
-            link = prod.find("a", href=True)
-            if not link:
+            price_str = card.get("data-tss-price", "")
+            if not price_str:
                 continue
-            href = link.get("href", "")
+            try:
+                current = float(price_str)
+            except ValueError:
+                continue
+            title_el = card.select_one("a.product-item__name h2")
+            if not title_el:
+                title_el = card.select_one("a.product-item__name")
+            if not title_el:
+                continue
+            title = title_el.get_text(strip=True)
+            link_el = card.select_one("a.product-item__name")
+            if not link_el:
+                link_el = card.select_one("a.product-item__image")
+            if not link_el:
+                continue
+            href = link_el.get("href", "")
             pid_base = str(hash(href))[:10]
             pid = f"TB{pid_base}"
-            if pid in seen:
-                continue
-            seen.add(pid)
-            title = link.get("title", "") or link.get_text(strip=True)
-            price_el = prod.find(["span", "div"], class_=re.compile(r"price|preco|val-prod"))
-            current = 0.0
-            if price_el:
-                try:
-                    current = float(price_el.get_text(strip=True).replace("R$", "").replace(".", "").replace(",", ".").strip())
-                except ValueError:
-                    pass
-            if not title or current <= 0:
-                continue
             full_url = href if href.startswith("http") else f"https://www.terabyteshop.com.br{href}"
             offers.append(Offer(
                 title=title[:150], product_id=pid,

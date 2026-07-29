@@ -1,7 +1,7 @@
 [[targets]]
 name = "Ryzen 5 5500"
 category = "cpu"
-max_price = 560.00
+max_price = 600.00
 search_terms = [
   "ryzen 5 5500",
   "amd ryzen 5 5500",
@@ -10,7 +10,7 @@ search_terms = [
 [[targets]]
 name = "Placa Mae B450M/A520M"
 category = "motherboard"
-max_price = 410.00
+max_price = 450.00
 search_terms = [
   "b450m",
   "a520m",
@@ -22,7 +22,7 @@ search_terms = [
 [[targets]]
 name = "GTX 750 Ti 4GB"
 category = "gpu"
-max_price = 500.00
+max_price = 700.00
 search_terms = [
   "gtx 750 ti",
   "geforce gtx 750 ti",
@@ -33,7 +33,7 @@ search_terms = [
 [[targets]]
 name = "Memoria DDR4 8GB 3200MHz"
 category = "ram"
-max_price = 140.00
+max_price = 400.00
 search_terms = [
   "memoria ddr4 8gb 3200",
   "ddr4 8gb 3200mhz",
@@ -45,7 +45,7 @@ search_terms = [
 [[targets]]
 name = "SSD 480GB"
 category = "ssd"
-max_price = 180.00
+max_price = 450.00
 search_terms = [
   "ssd 480gb",
   "ssd 480",

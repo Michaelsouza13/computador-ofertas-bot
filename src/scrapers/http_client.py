@@ -55,11 +55,12 @@ class AdaptiveRateLimiter:
 
 
 class HttpClient:
-    def __init__(self, platform: str = "", use_curl_cffi: bool = False):
+    def __init__(self, platform: str = "", use_curl_cffi: bool = False, impersonate: str = ""):
         self.platform = platform
         self.use_curl_cffi = use_curl_cffi and CURL_CFFI_AVAILABLE
+        self.impersonate = impersonate
         if self.use_curl_cffi:
-            logger.info("using_curl_cffi", extra={"platform": platform})
+            logger.info("using_curl_cffi", extra={"platform": platform, "impersonate": impersonate or "none"})
         self.session = _requests.Session()
         self.limiter = AdaptiveRateLimiter(min_delay=2.0, max_delay=30.0)
         self.consecutive_blocks = 0
@@ -92,7 +93,10 @@ class HttpClient:
             "delay": round(self.limiter.current_delay, 1),
         })
         try:
-            resp = self.session.get(url, timeout=timeout, **kwargs)
+            req_kwargs = {"timeout": timeout, **kwargs}
+            if self.use_curl_cffi and self.impersonate:
+                req_kwargs["impersonate"] = self.impersonate
+            resp = self.session.get(url, **req_kwargs)
             if resp.status_code in (429, 403):
                 self.consecutive_blocks += 1
                 self.limiter.on_block()

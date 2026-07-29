@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from urllib.parse import quote
@@ -14,7 +15,7 @@ SEARCH_URL = "https://www.kabum.com.br/busca/{termo}"
 class KabumScraper(BaseScraper):
     def __init__(self):
         super().__init__()
-        self.http = HttpClient(platform="kabum")
+        self.http = HttpClient(platform="kabum", use_curl_cffi=True, impersonate="chrome120")
 
     @property
     def platform_name(self) -> str:
@@ -28,39 +29,46 @@ class KabumScraper(BaseScraper):
         return self._parse_search(html, max_offers)
 
     def _parse_search(self, html: str, max_offers: int) -> list[Offer]:
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(html, "html.parser")
         offers = []
+        match = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+        if not match:
+            return []
+        try:
+            data = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            return []
+        products = self._extract_products(data)
         seen = set()
-        products = soup.find_all("article", class_=re.compile(r"productCard"))
-        if not products:
-            products = soup.find_all("div", class_=re.compile(r"product"))
         for prod in products:
             if len(offers) >= max_offers:
                 break
-            link = prod.find("a", href=True)
-            if not link:
+            code = prod.get("code")
+            if not code:
                 continue
-            href = link.get("href", "")
-            pid_match = re.search(r"/produto/(\d+)", href)
-            pid_base = pid_match.group(1) if pid_match else str(hash(href))[:10]
-            pid = f"KB{pid_base}"
+            pid = f"KB{code}"
             if pid in seen:
                 continue
             seen.add(pid)
-            title = link.get("title", "") or prod.get_text(strip=True)
-            price_el = prod.find(["span", "strong"], class_=re.compile(r"price|preco"))
-            current = 0.0
-            if price_el:
-                try:
-                    current = float(price_el.get_text(strip=True).replace("R$", "").replace(".", "").replace(",", ".").strip())
-                except ValueError:
-                    pass
-            if not title or current <= 0:
+            title = prod.get("name", "")
+            price = prod.get("priceWithDiscount", 0) or prod.get("price", 0)
+            if not title or not price:
                 continue
-            full_url = href if href.startswith("http") else f"https://www.kabum.com.br{href}"
+            slug = prod.get("friendlyName", "")
+            url = f"https://www.kabum.com.br/{slug}" if slug else ""
             offers.append(Offer(
                 title=title[:150], product_id=pid,
-                current_price=current, product_url=full_url, platform="kabum",
+                current_price=float(price), product_url=url,
+                platform="kabum",
             ))
         return offers
+
+    def _extract_products(self, data: dict) -> list[dict]:
+        try:
+            pp = data.get("props", {}).get("pageProps", {})
+            catalog = pp.get("data", {}).get("catalogServer", {})
+            products = catalog.get("data", [])
+            if isinstance(products, list) and products:
+                return products
+        except Exception:
+            pass
+        return []
