@@ -56,7 +56,7 @@ class HttpClient:
         self.session.headers.update(BASE_HEADERS)
         self.session.headers["User-Agent"] = random.choice(USER_AGENTS)
 
-    def get(self, url: str, timeout: int = 30, **kwargs) -> Optional[str]:
+    def get(self, url: str, timeout: int = 15, **kwargs) -> Optional[str]:
         self.limiter.wait()
         self._rotate_ua()
         logger.debug("http_get", extra={
@@ -64,8 +64,8 @@ class HttpClient:
             "delay": round(self.limiter.current_delay, 1),
         })
         try:
-            resp = self.session.get(url, timeout=timeout, **kwargs)
-            if resp.status_code == 429 or resp.status_code == 403:
+            resp = self.session.get(url, timeout=(timeout, timeout), **kwargs)
+            if resp.status_code in (429, 403):
                 self.limiter.on_block()
                 logger.warning("http_blocked", extra={
                     "url": url[:80], "status": resp.status_code,
@@ -81,6 +81,11 @@ class HttpClient:
                 "size_kb": round(len(resp.text) / 1024, 1),
             })
             return resp.text
+        except requests.Timeout:
+            logger.error("http_timeout", extra={
+                "url": url[:80], "platform": self.platform,
+            })
+            return None
         except requests.RequestException as e:
             logger.error("http_error", extra={
                 "url": url[:80], "error": str(e), "platform": self.platform,

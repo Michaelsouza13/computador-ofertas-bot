@@ -67,7 +67,7 @@ class BaseScraper(ABC):
                     all_offers.append(o)
                     if len(all_offers) >= max_offers:
                         break
-                time.sleep(1.5)
+                time.sleep(1.0)
 
         self.offers_found = len(all_offers)
         self.logger.info("scrape_complete", extra={
