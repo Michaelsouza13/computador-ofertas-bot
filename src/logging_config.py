@@ -8,9 +8,21 @@ from pathlib import Path
 RUN_ID = uuid.uuid4().hex[:12]
 RUN_DIR = Path(f"logs/run_{RUN_ID}")
 
+
+class RunIDFilter(logging.Filter):
+    def filter(self, record):
+        record.run_id = RUN_ID
+        return True
+
+
 LOGGING_CONFIG = {
     "version": 1,
     "disable_existing_loggers": False,
+    "filters": {
+        "run_id": {
+            "()": RunIDFilter,
+        },
+    },
     "formatters": {
         "json": {
             "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
@@ -40,6 +52,7 @@ LOGGING_CONFIG = {
             "formatter": "json",
             "level": "DEBUG",
             "encoding": "utf-8",
+            "filters": ["run_id"],
         },
         "errors_file": {
             "class": "logging.handlers.RotatingFileHandler",
@@ -49,6 +62,7 @@ LOGGING_CONFIG = {
             "formatter": "json",
             "level": "WARNING",
             "encoding": "utf-8",
+            "filters": ["run_id"],
         },
     },
     "loggers": {
@@ -72,11 +86,5 @@ def setup_logging():
         '{"run_id":"' + RUN_ID + '","status":"running"}', encoding="utf-8"
     )
     logging.config.dictConfig(LOGGING_CONFIG)
-    old_factory = logging.getLogRecordFactory()
-    def record_factory(*args, **kwargs):
-        record = old_factory(*args, **kwargs)
-        record.run_id = RUN_ID
-        return record
-    logging.setLogRecordFactory(record_factory)
-    logging.getLogger("bot").info("logging_ready", extra={"run_id": RUN_ID})
+    logging.getLogger("bot").info("logging_ready")
     return RUN_ID
