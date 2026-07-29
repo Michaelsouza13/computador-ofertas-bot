@@ -1,6 +1,6 @@
 import logging
 import re
-import time
+from urllib.parse import quote
 
 from src.models.offer import Offer
 from src.scrapers.base import BaseScraper
@@ -8,7 +8,7 @@ from src.scrapers.http_client import HttpClient
 
 logger = logging.getLogger("scrapers.zoom")
 
-SEARCH_URL = "https://www.zoom.com.br/search?q={keyword}&sort=price"
+SEARCH_URL = "https://www.zoom.com.br/search?q={termo}&sort=price"
 
 
 class ZoomScraper(BaseScraper):
@@ -20,46 +20,21 @@ class ZoomScraper(BaseScraper):
     def platform_name(self) -> str:
         return "zoom"
 
-    def scrape(self, max_offers: int = 10) -> list[Offer]:
-        self.errors_this_run = 0
-        self.offers_found = 0
-        t0 = time.time()
-        offers = []
-        seen = set()
-        keywords = [
-            "placa+de+video", "processador", "memoria+ram",
-            "ssd+1tb", "fonte+750w", "gabinete+gamer",
-        ]
-        for kw in keywords:
-            if len(offers) >= max_offers:
-                break
-            url = SEARCH_URL.format(keyword=kw)
-            html = self.http.get(url)
-            if not html:
-                self.errors_this_run += 1
-                continue
-            page_offers = self._parse_search(html)
-            for o in page_offers:
-                if o.id in seen:
-                    continue
-                seen.add(o.id)
-                offers.append(o)
-                if len(offers) >= max_offers:
-                    break
-            time.sleep(2)
-        self.offers_found = len(offers)
-        self.elapsed_s = time.time() - t0
-        self.logger.info("scraper_complete", extra={
-            "offers": self.offers_found, "elapsed_s": round(self.elapsed_s, 1),
-        })
-        return offers
+    def search(self, term: str, max_offers: int = 5) -> list[Offer]:
+        url = SEARCH_URL.format(termo=quote(term))
+        html = self.http.get(url)
+        if not html:
+            return []
+        return self._parse_search(html, max_offers)
 
-    def _parse_search(self, html: str) -> list[Offer]:
+    def _parse_search(self, html: str, max_offers: int) -> list[Offer]:
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(html, "html.parser")
         offers = []
         cards = soup.find_all("div", class_=re.compile(r"card|product-card|item"))
         for card in cards:
+            if len(offers) >= max_offers:
+                break
             link = card.find("a", href=True)
             if not link:
                 continue
@@ -71,17 +46,14 @@ class ZoomScraper(BaseScraper):
             current = 0.0
             if price_el:
                 try:
-                    current = float(
-                        price_el.get_text(strip=True)
-                        .replace("R$", "").replace(".", "").replace(",", ".").strip()
-                    )
+                    current = float(price_el.get_text(strip=True).replace("R$", "").replace(".", "").replace(",", ".").strip())
                 except ValueError:
                     pass
             if not title or current <= 0:
                 continue
             full_url = href if href.startswith("http") else f"https://www.zoom.com.br{href}"
             offers.append(Offer(
-                title=title, product_id=pid, current_price=current,
-                product_url=full_url, platform="zoom",
+                title=title[:150], product_id=pid,
+                current_price=current, product_url=full_url, platform="zoom",
             ))
         return offers

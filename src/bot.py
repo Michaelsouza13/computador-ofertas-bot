@@ -130,7 +130,7 @@ def _balance_offers(all_offers: list, max_offers: int) -> list:
 
 @retry_with_backoff(max_retries=2, base_delay=5)
 def _scrape_platform(scraper, max_offers: int) -> list[Offer]:
-    return scraper.scrape(max_offers=max_offers)
+    return scraper.scrape_targets(max_offers=max_offers)
 
 
 def _build_summary(run_id: str, scrapers, scored, sent_tg, sent_wp, total_time_s, cache_size):
@@ -191,8 +191,9 @@ def main():
     logger.info("scraping_start", extra={"platforms": len(scrapers)})
 
     with ThreadPoolExecutor(max_workers=min(len(scrapers), 6)) as executor:
+        per_platform = max(1, max_offers // len(scrapers)) if max_offers > 0 else 5
         futures = {
-            executor.submit(_scrape_platform, s, max(1, max_offers // len(scrapers))): s
+            executor.submit(_scrape_platform, s, per_platform): s
             for s in scrapers
         }
         for future in as_completed(futures):

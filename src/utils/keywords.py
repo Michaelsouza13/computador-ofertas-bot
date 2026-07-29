@@ -1,38 +1,37 @@
-HARDWARE_KEYWORDS = {
-    "cpu": [
-        "processador", "ryzen", "intel core", "i5", "i7", "i9", "ultra 5", "ultra 7", "ultra 9",
-        "amd ryzen", "socket am5", "socket am4", "lga 1700", "lga 1851",
-    ],
-    "gpu": [
-        "placa de video", "placa de vídeo", "geforce", "rtx", "gtx", "radeon", "rx",
-        "nvidia", "amd radeon", "intel arc", "rtx 40", "rtx 50", "rx 70", "rx 90",
-    ],
-    "ram": [
-        "memoria ram", "memória ram", "ddr4", "ddr5", "16gb", "32gb", "64gb",
-        "kingston fury", "corsair vengeance", "xpg", "g.skill",
-    ],
-    "ssd": [
-        "ssd", "nvme", "m.2", "sata ssd", "armazenamento", "1tb", "2tb",
-        "kingston nv2", "wd black", "samsung 990", "crucial",
-    ],
-    "motherboard": [
-        "placa mae", "placa mãe", "motherboard", "b650", "b760", "x670", "z790",
-        "x870", "a620", "h610", "chipset am5", "chipset lga",
-    ],
-    "psu": [
-        "fonte", "psu", "corsair", "evga", "cooler master", "xpg", "750w", "850w",
-        "1000w", "fonte modular", "fonte atx 3.0",
-    ],
-    "case": [
-        "gabinete", "case", "mid tower", "full tower", "gamer", "lian li",
-        "corsair", "nzxt", "rise mode", "aquário",
-    ],
-    "cooler": [
-        "water cooler", "air cooler", "cooler cpu", "ventoinha", "fan",
-        "deepcool", "corsair h", "noctua", "thermalright",
-    ],
-}
+import tomllib
+from pathlib import Path
 
-ALL_HARDWARE = [
-    kw for category in HARDWARE_KEYWORDS.values() for kw in category
-]
+
+def load_targets() -> list[dict]:
+    path = Path("config/product_targets.toml")
+    if not path.exists():
+        return []
+    with open(path, "rb") as f:
+        data = tomllib.load(f)
+    return data.get("targets", [])
+
+
+TARGETS = load_targets()
+
+def get_search_terms() -> list[str]:
+    terms = []
+    for t in TARGETS:
+        terms.extend(t.get("search_terms", []))
+    return list(set(terms))
+
+
+SEARCH_TERMS = get_search_terms()
+
+def get_price_ceiling(category: str) -> float:
+    for t in TARGETS:
+        if t["category"] == category:
+            return t["max_price"]
+    return 0.0
+
+def get_max_price_for_product(product_title: str) -> float:
+    title_lower = product_title.lower()
+    for t in TARGETS:
+        for term in t.get("search_terms", []):
+            if term.lower() in title_lower:
+                return t["max_price"]
+    return 0.0

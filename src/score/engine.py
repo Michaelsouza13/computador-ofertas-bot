@@ -1,9 +1,9 @@
 import logging
-from typing import Optional
 
 from src.models.offer import Offer, ScoreResult, ScoreCategory
 from src.score.historical import HistoricalAnalyzer
 from src.score.rules import QualityRules
+from src.utils.keywords import get_max_price_for_product
 
 logger = logging.getLogger("score.engine")
 
@@ -22,6 +22,19 @@ class ScoreEngine:
 
     def evaluate(self, offer: Offer) -> ScoreResult:
         result = ScoreResult()
+
+        max_price = self._get_price_ceiling(offer)
+        if max_price > 0 and offer.current_price > max_price:
+            result.decision = "skip"
+            result.category = ScoreCategory.WEAK
+            logger.info("price_ceiling_blocked", extra={
+                "offer_id": offer.product_id,
+                "title": offer.title[:50],
+                "price": offer.current_price,
+                "max_price": max_price,
+                "platform": offer.platform,
+            })
+            return result
 
         hist = self.historical.analyze(
             offer.product_id, offer.current_price, offer.original_price
@@ -72,6 +85,9 @@ class ScoreEngine:
         })
 
         return result
+
+    def _get_price_ceiling(self, offer: Offer) -> float:
+        return get_max_price_for_product(offer.title)
 
 
 class ScoreThresholds:
