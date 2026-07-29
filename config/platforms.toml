@@ -1,0 +1,27 @@
+[platforms]
+# Core - sempre ativos
+mercadolivre = true
+kabum = true
+pichau = true
+terabyte = true
+
+# Marketplaces brasileiros
+shopee = true
+amazon_br = true
+magalu = true
+
+# Comparadores de preço
+zoom = true
+buscape = true
+
+# Internacionais (desligados por padrão - requerem mais cuidado com anti-bot)
+amazon_us = false
+aliexpress = false
+newegg = false
+
+[scraping]
+max_offers_per_run = 15
+send_delay_seconds = 30
+
+[hardware]
+categories = ["cpu", "gpu", "ram", "ssd", "motherboard", "psu", "case", "cooler"]
